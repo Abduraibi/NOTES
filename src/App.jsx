@@ -3,6 +3,30 @@ import { Copy, Check } from "lucide-react";
 
 const defaultLabs = { wbc: "", ne: "", hgb: "", plt: "", crp: "", ph: "", pco2: "", hco3: "", na: "140", k: "3.8", glu: "", urea: "", creat: "" };
 
+const LabInput = ({ k, label, placeholder, labs, setLabs }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</label>
+    <input
+      className="w-20 border border-gray-300 rounded px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+      placeholder={placeholder || ""}
+      value={labs[k]}
+      onChange={e => setLabs(p => ({ ...p, [k]: e.target.value }))}
+    />
+  </div>
+);
+
+const Field = ({ label, value, setter, placeholder, mono }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</label>
+    <input
+      className={`border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${mono ? "font-mono" : ""}`}
+      placeholder={placeholder || ""}
+      value={value}
+      onChange={e => setter(e.target.value)}
+    />
+  </div>
+);
+
 export default function App() {
   const [tab, setTab] = useState("isbar");
   const [copied, setCopied] = useState(false);
@@ -103,29 +127,7 @@ ${plan.trim() ? plan : "SEE ORDER SHEET"}`;
     setExtraLabs(updated);
   };
 
-  const LabInput = ({ k, label, placeholder }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</label>
-      <input
-        className="w-20 border border-gray-300 rounded px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
-        placeholder={placeholder || ""}
-        value={labs[k]}
-        onChange={e => setLabs(p => ({ ...p, [k]: e.target.value }))}
-      />
-    </div>
-  );
-
-  const Field = ({ label, value, setter, placeholder, mono }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</label>
-      <input
-        className={`border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${mono ? "font-mono" : ""}`}
-        placeholder={placeholder || ""}
-        value={value}
-        onChange={e => setter(e.target.value)}
-      />
-    </div>
-  );
+  const LabI = (props) => <LabInput {...props} labs={labs} setLabs={setLabs} />;
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -232,29 +234,29 @@ ${plan.trim() ? plan : "SEE ORDER SHEET"}`;
                 <div>
                   <p className="text-xs text-gray-400 mb-2 font-semibold">CBC</p>
                   <div className="flex flex-wrap gap-3">
-                    <LabInput k="wbc" label="WBC" />
-                    <LabInput k="ne" label="NE" />
-                    <LabInput k="hgb" label="HGB" />
-                    <LabInput k="plt" label="PLT" />
+                    <LabI k="wbc" label="WBC" />
+                    <LabI k="ne" label="NE" />
+                    <LabI k="hgb" label="HGB" />
+                    <LabI k="plt" label="PLT" />
                   </div>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 mb-2 font-semibold">CRP & VBG</p>
                   <div className="flex flex-wrap gap-3">
-                    <LabInput k="crp" label="CRP (mg/L)" />
-                    <LabInput k="ph" label="pH 7." />
-                    <LabInput k="pco2" label="PCO₂" />
-                    <LabInput k="hco3" label="HCO₃" />
+                    <LabI k="crp" label="CRP (mg/L)" />
+                    <LabI k="ph" label="pH 7." />
+                    <LabI k="pco2" label="PCO₂" />
+                    <LabI k="hco3" label="HCO₃" />
                   </div>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 mb-2 font-semibold">U/E</p>
                   <div className="flex flex-wrap gap-3">
-                    <LabInput k="na" label="NA" placeholder="140" />
-                    <LabInput k="k" label="K" placeholder="3.8" />
-                    <LabInput k="glu" label="GLU" />
-                    <LabInput k="urea" label="UREA" />
-                    <LabInput k="creat" label="CREAT" />
+                    <LabI k="na" label="NA" placeholder="140" />
+                    <LabI k="k" label="K" placeholder="3.8" />
+                    <LabI k="glu" label="GLU" />
+                    <LabI k="urea" label="UREA" />
+                    <LabI k="creat" label="CREAT" />
                   </div>
                 </div>
                 <div>
