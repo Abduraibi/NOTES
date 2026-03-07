@@ -389,15 +389,15 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
             {/* Patient Info */}
             <Section title="Patient Info" icon="🧑‍⚕️" dark={D}>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={lbl}>Name</label><input className={inp} placeholder="BABY OF SARA" value={s.name} onChange={e => set("name")(up(e.target.value))} /></div>
-                <div><label className={lbl}>Age</label><input className={inp} placeholder="3 DAYS" value={s.age} onChange={e => set("age")(up(e.target.value))} /></div>
+                <div><label className={lbl}>Name</label><input className={inp} placeholder="BABY OF SARA" value={s.name} onChange={e => { const v = up(e.target.value); setS(p => ({...p, name: v})); }} /></div>
+                <div><label className={lbl}>Age</label><input className={inp} placeholder="3 DAYS" value={s.age} onChange={e => { const v = up(e.target.value); setS(p => ({...p, age: v})); }} /></div>
                 {tab === "isbar" && <>
-                  <div><label className={lbl}>MRN #</label><input className={inp} placeholder="123456" value={s.mrn} onChange={e => set("mrn")(up(e.target.value))} /></div>
-                  <div><label className={lbl}>Room #</label><input className={inp} placeholder="204" value={s.room} onChange={e => set("room")(up(e.target.value))} /></div>
+                  <div><label className={lbl}>MRN #</label><input className={inp} placeholder="123456" value={s.mrn} onChange={e => { const v = up(e.target.value); setS(p => ({...p, mrn: v})); }} /></div>
+                  <div><label className={lbl}>Room #</label><input className={inp} placeholder="204" value={s.room} onChange={e => { const v = up(e.target.value); setS(p => ({...p, room: v})); }} /></div>
                 </>}
               </div>
-              {tab === "progress" && <div className="mt-3"><label className={lbl}>Birth Info <span className={`normal-case font-normal ${D ? "text-gray-500" : "text-gray-400"}`}>(optional)</span></label><input className={inp} placeholder="FT, NSVD, NO NICU ADMISSION" value={s.ftNsvd} onChange={e => set("ftNsvd")(up(e.target.value))} /></div>}
-              <div className="mt-3"><label className={lbl}>Diagnosis (Dx)</label><input className={inp} placeholder="NEONATAL JAUNDICE" value={s.dx} onChange={e => set("dx")(up(e.target.value))} /></div>
+              {tab === "progress" && <div className="mt-3"><label className={lbl}>Birth Info <span className={`normal-case font-normal ${D ? "text-gray-500" : "text-gray-400"}`}>(optional)</span></label><input className={inp} placeholder="FT, NSVD, NO NICU ADMISSION" value={s.ftNsvd} onChange={e => { const v = up(e.target.value); setS(p => ({...p, ftNsvd: v})); }} /></div>}
+              <div className="mt-3"><label className={lbl}>Diagnosis (Dx)</label><input className={inp} placeholder="NEONATAL JAUNDICE" value={s.dx} onChange={e => { const v = up(e.target.value); setS(p => ({...p, dx: v})); }} /></div>
             </Section>
 
             {/* History */}
