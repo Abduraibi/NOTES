@@ -85,7 +85,7 @@ export default function App() {
         imagingBlock ? imagingBlock + "\n" : null,
         medsBlock ? medsBlock + "\n" : null,
         `* ASSESSMENT:`,
-        `${age} OLD${name ? ", " + name + "." : "."} ADMITTED AS A CASE OF ${dx}, HD STABLE, ON RA.`,
+        `${name ? name + ", " : ""}${age} OLD. ADMITTED AS A CASE OF ${dx}, HD STABLE, ON RA.`,
         ``,
         `* PLAN:`,
         plan.trim() ? plan : "SEE ORDER SHEET",
