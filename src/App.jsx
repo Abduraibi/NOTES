@@ -213,7 +213,7 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
     const erBlock      = erLevel.trim() ? `AT ER LEVEL :\n${erLevel}\n------------------------------------------------------------\n` : "";
 
     if (tab === "progress") {
-      return `------------------------------------------------------------\nTHIS IS , ${ftNsvd}.\n* PRESENTED TO ER WITH HX OF :\n${hxBlock}\n------------------------------------------------------------\n${erBlock}* ${examBlock}\n\n* ${labBlock}\n\n${imagingBlock ? imagingBlock + "\n\n" : ""}${medsBlock ? medsBlock + "\n\n" : ""}* ASSESSMENT:\n${age} OLD, ${ftNsvd}. ADMITTED AS A CASE OF ${dx}, HD STABLE, ON RA.\n\n* PLAN:\n${plan.trim() ? plan : "SEE ORDER SHEET"}`;
+      return `------------------------------------------------------------\n${name ? name + " — " : ""}THIS IS , ${ftNsvd.trim() ? ftNsvd : ""}\n* PRESENTED TO ER WITH HX OF :\n${hxBlock}\n------------------------------------------------------------\n${erBlock}* ${examBlock}\n\n* ${labBlock}\n\n${imagingBlock ? imagingBlock + "\n\n" : ""}${medsBlock ? medsBlock + "\n\n" : ""}* ASSESSMENT:\n${age} OLD${ftNsvd.trim() ? ", " + ftNsvd : ""}. ADMITTED AS A CASE OF ${dx}, HD STABLE, ON RA.\n\n* PLAN:\n${plan.trim() ? plan : "SEE ORDER SHEET"}`;
     }
     return `* IDENTIFICATION:\n${name} , ${age} OLD.\nMRN#${mrn}, ROOM#${room}\n\n* SITUATION:\n${name} ${age} OLD. ADMITTED AS A CASE OF ${dx}, HD STABLE, ON RA.\n\n* BACKGROUND:\n PRESENTED TO ER WITH HX OF :\n${hxBlock}\n------------------------------------------------------------\n${erBlock}* ${examBlock}\n\n* ${labBlock}\n\n${imagingBlock ? imagingBlock + "\n" : ""}${medsBlock ? medsBlock + "\n" : ""}------------------------------------------------------------\n* ASSESSMENT:\n${name} ${age} OLD. ADMITTED AS A CASE OF ${dx}, HD STABLE, ON RA.\n\nR-RECOMMENDATION :\n${plan.trim() ? plan : "SEE ORDER SHEET"}`;
   };
@@ -396,7 +396,7 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
                   <div><label className={lbl}>Room #</label><input className={inp} placeholder="204" value={s.room} onChange={e => set("room")(up(e.target.value))} /></div>
                 </>}
               </div>
-              {tab === "progress" && <div className="mt-3"><label className={lbl}>Birth Info</label><input className={inp} placeholder="FT, NSVD, NO NICU ADMISSION" value={s.ftNsvd} onChange={e => set("ftNsvd")(up(e.target.value))} /></div>}
+              {tab === "progress" && <div className="mt-3"><label className={lbl}>Birth Info <span className={`normal-case font-normal ${D ? "text-gray-500" : "text-gray-400"}`}>(optional)</span></label><input className={inp} placeholder="FT, NSVD, NO NICU ADMISSION" value={s.ftNsvd} onChange={e => set("ftNsvd")(up(e.target.value))} /></div>}
               <div className="mt-3"><label className={lbl}>Diagnosis (Dx)</label><input className={inp} placeholder="NEONATAL JAUNDICE" value={s.dx} onChange={e => set("dx")(up(e.target.value))} /></div>
             </Section>
 
