@@ -39,7 +39,7 @@ const Section = ({ title, icon, children, dark, defaultOpen = true }) => {
 };
 
 export default function App() {
-  const [tab, setTab] = useState("isbar");
+  const [tab, setTab] = useState("progress");
   const [copied, setCopied] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
@@ -225,7 +225,7 @@ export default function App() {
 
         {/* Tabs */}
         <div className={`flex rounded-xl p-1 mb-4 ${D ? "bg-gray-800" : "bg-white shadow-sm border border-gray-200"}`}>
-          {[["isbar", "ISBAR Note"], ["progress", "Progress Note"]].map(([v, l]) => (
+          {[["progress", "Progress Note"], ["isbar", "ISBAR Note"]].map(([v, l]) => (
             <button key={v} onClick={() => setTab(v)}
               className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-all ${tab === v ? "bg-blue-600 text-white shadow" : D ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}>
               {l}
