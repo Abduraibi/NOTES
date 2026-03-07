@@ -73,7 +73,7 @@ export default function App() {
     if (tab === "progress") {
       return [
         `------------------------------------------------------------`,
-        `THIS IS ${name ? name + " ," : ","} ${ftNsvd.trim() ? ftNsvd : ""}`,
+        `THIS IS ${name ? name + " ," : ","} ${age ? age + " OLD ," : ""} ${ftNsvd.trim() ? ftNsvd : ""}`,
         `* PRESENTED TO ER WITH HX OF :`,
         hxBlock,
         `------------------------------------------------------------`,
