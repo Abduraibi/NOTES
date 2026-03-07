@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from “react”;
-import { Copy, Check, RotateCcw, Save, Clock, X, Mic, MicOff } from “lucide-react”;
+import { useState, useEffect, useRef } from "react";
+import { Copy, Check, RotateCcw, Save, Clock, X, Mic, MicOff } from "lucide-react";
 
 const defaultLabs = { wbc: “”, ne: “”, hgb: “”, plt: “”, crp: “”, ph: “”, pco2: “”, hco3: “”, na: “140”, k: “3.8”, glu: “”, urea: “”, creat: “” };
 const defaultState = {
