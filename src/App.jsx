@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Copy, Check, RotateCcw, Save, Clock, X, Moon, Sun, ChevronDown, ChevronUp, FlaskConical, FileText, ClipboardList, BookOpen, Search } from "lucide-react";
 
 // ─── MX DATA ─────────────────────────────────────────────────────────────────
@@ -853,6 +853,7 @@ const MxPage = ({ dark }) => {
   const [expandedKey, setExpandedKey] = useState(null);
   const D = dark;
 
+
   const copyText = (text, key) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
@@ -929,6 +930,7 @@ const MxPage = ({ dark }) => {
 const ReferencesPage = ({ dark }) => {
   const [copiedKey, setCopiedKey] = useState(null);
   const D = dark;
+
   const copyText = (text, key) => { navigator.clipboard.writeText(text); setCopiedKey(key); setTimeout(() => setCopiedKey(null), 2000); };
 
   return (
@@ -987,13 +989,18 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [showNote, setShowNote]   = useState(false);
-  const [dark, setDark]           = useState(false);
-  const [history, setHistory]     = useState([]);
-  const [savedPatients, setSavedPatients] = useState([]);
+  const [dark, setDark]           = useState(() => { try { return localStorage.getItem('darkMode') === 'true'; } catch { return false; } });
+  const [history, setHistory]     = useState(() => { try { return JSON.parse(localStorage.getItem('noteHistory') || '[]'); } catch { return []; } });
+  const [savedPatients, setSavedPatients] = useState(() => { try { return JSON.parse(localStorage.getItem('savedPatients') || '[]'); } catch { return []; } });
+
+  useEffect(() => { try { localStorage.setItem('darkMode', dark); } catch {} }, [dark]);
+  useEffect(() => { try { localStorage.setItem('noteHistory', JSON.stringify(history)); } catch {} }, [history]);
+  useEffect(() => { try { localStorage.setItem('savedPatients', JSON.stringify(savedPatients)); } catch {} }, [savedPatients]);
   const [saveLabel, setSaveLabel] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [s, setS]                 = useState({ ...defaultState, labs: { ...defaultLabs } });
   const D = dark;
+
 
   const setField = useCallback((key, val) => setS(p => ({ ...p, [key]: val })), []);
   const setLab   = useCallback((key, val) => setS(p => ({ ...p, labs: { ...p.labs, [key]: val } })), []);
