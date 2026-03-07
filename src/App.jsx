@@ -414,6 +414,12 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
               </div>
             </Section>
 
+            {/* ER Level — both tabs, optional */}
+            <Section title="AT ER LEVEL" icon="🏥" dark={D} defaultOpen={false}>
+              <p className={`text-xs italic mb-2 ${D ? "text-gray-500" : "text-gray-400"}`}>Leave empty to omit from note</p>
+              <textarea className={`${inpMono} resize-none`} rows={3} placeholder="WHAT WAS DONE AT ER LEVEL..." value={s.erLevel} onChange={e => set("erLevel")(up(e.target.value))} />
+            </Section>
+
             {/* O/E */}
             <Section title="O/E Examination" icon="🩺" dark={D}>
               <div className="space-y-3">
@@ -424,12 +430,6 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
                   </div>
                 ))}
               </div>
-            </Section>
-
-            {/* ER Level — both tabs, optional */}
-            <Section title="AT ER LEVEL" icon="🏥" dark={D} defaultOpen={false}>
-              <p className={`text-xs italic mb-2 ${D ? "text-gray-500" : "text-gray-400"}`}>Leave empty to omit from note</p>
-              <textarea className={`${inpMono} resize-none`} rows={3} placeholder="WHAT WAS DONE AT ER LEVEL..." value={s.erLevel} onChange={e => set("erLevel")(up(e.target.value))} />
             </Section>
 
             {/* Labs */}
