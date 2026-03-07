@@ -1,25 +1,26 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Copy, Check, RotateCcw, Save, Clock, X, Mic, MicOff, Moon, Sun, ChevronDown, ChevronUp, Wand2 } from "lucide-react";
 
 const defaultLabs = { wbc: "", ne: "", hgb: "", plt: "", crp: "", ph: "", pco2: "", hco3: "", na: "140", k: "3.8", glu: "", urea: "", creat: "" };
 const defaultState = {
   name: "", age: "", mrn: "", room: "", dx: "", ftNsvd: "FT, NSVD, NO NICU ADMISSION",
-  hxLines: ["", "", "", ""], labs: defaultLabs, extraLabs: [],
+  hxLines: ["", "", "", ""], labs: { ...defaultLabs }, extraLabs: [],
   imagingLines: [], showImaging: false, currentMeds: [], erLevel: "", plan: "",
   general: "PT LOOKS WELL , WELL HYDRATED AND PERFUSED , HD STABLE, NOT IN DISTRESS , ON RA",
   chest: "EBAE, NO ADDED SOUNDS", abd: "SOFT AND LAX NO HEPATOSPLENOMEGALY", cvs: "S1+S2+0"
 };
 
-const up = (v) => v.toUpperCase();
+const up = v => v.toUpperCase();
 
-const LabInput = ({ k, label, placeholder, labs, setLabs, dark }) => (
+// All components defined OUTSIDE App to prevent re-creation on render
+const LabInput = ({ k, label, placeholder, labs, onChange, dark }) => (
   <div className="flex flex-col gap-1">
     <label className={`text-xs font-semibold uppercase tracking-wide ${dark ? "text-gray-400" : "text-gray-500"}`}>{label}</label>
     <input
       className={`w-16 border rounded px-2 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 ${dark ? "bg-gray-700 border-gray-600 text-white placeholder-gray-500" : "border-gray-300 bg-white"}`}
       placeholder={placeholder || ""}
       value={labs[k]}
-      onChange={e => setLabs(p => ({ ...p, [k]: up(e.target.value) }))}
+      onChange={e => onChange(k, up(e.target.value))}
     />
   </div>
 );
@@ -49,8 +50,7 @@ export default function App() {
   const [savedPatients, setSavedPatients] = useState(() => JSON.parse(localStorage.getItem("savedPatients") || "[]"));
   const [saveLabel, setSaveLabel] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
-  const [s, setS] = useState({ ...defaultState });
-  const set = (key) => (val) => setS(p => ({ ...p, [key]: val }));
+  const [s, setS] = useState({ ...defaultState, labs: { ...defaultLabs } });
   const D = dark;
 
   // Smart Dictation
@@ -63,17 +63,23 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem("darkMode", dark); }, [dark]);
 
+  // Stable field updater
+  const setField = useCallback((key, val) => {
+    setS(p => ({ ...p, [key]: val }));
+  }, []);
+
+  const setLab = useCallback((key, val) => {
+    setS(p => ({ ...p, labs: { ...p.labs, [key]: val } }));
+  }, []);
+
   const startDictation = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return alert("Voice input not supported. Please use Chrome.");
     if (dictationRef.current) dictationRef.current.stop();
     finalRef.current = "";
-    setTranscript("");
-    setShowTranscript(false);
+    setTranscript(""); setShowTranscript(false);
     const r = new SR();
-    r.lang = "en-US";
-    r.continuous = true;
-    r.interimResults = true;
+    r.lang = "en-US"; r.continuous = true; r.interimResults = true;
     r.onresult = e => {
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -82,23 +88,12 @@ export default function App() {
       }
       setTranscript((finalRef.current + interim).trim());
     };
-    r.onend = () => {
-      setDictating(false);
-      if (finalRef.current.trim()) {
-        setTranscript(finalRef.current.trim());
-        setShowTranscript(true);
-      }
-    };
+    r.onend = () => { setDictating(false); if (finalRef.current.trim()) { setTranscript(finalRef.current.trim()); setShowTranscript(true); } };
     r.onerror = () => setDictating(false);
-    dictationRef.current = r;
-    r.start();
-    setDictating(true);
+    dictationRef.current = r; r.start(); setDictating(true);
   };
 
-  const stopDictation = () => {
-    dictationRef.current?.stop();
-    setDictating(false);
-  };
+  const stopDictation = () => { dictationRef.current?.stop(); setDictating(false); };
 
   const processTranscript = async () => {
     if (!transcript.trim()) return;
@@ -136,37 +131,30 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{ role: "user", content: prompt }]
-        })
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: prompt }] })
       });
-
       const data = await response.json();
-      const text = data.content[0].text.trim();
-      const clean = text.replace(/```json|```/g, "").trim();
+      const clean = data.content[0].text.trim().replace(/```json|```/g, "").trim();
       const e = JSON.parse(clean);
-
       setS(prev => ({
         ...prev,
-        name:        e.name        || prev.name,
-        age:         e.age         || prev.age,
-        mrn:         e.mrn         || prev.mrn,
-        room:        e.room        || prev.room,
-        dx:          e.dx          || prev.dx,
-        ftNsvd:      e.ftNsvd      || prev.ftNsvd,
-        hxLines:     e.hxLines?.length     ? e.hxLines     : prev.hxLines,
-        erLevel:     e.erLevel     || prev.erLevel,
-        plan:        e.plan        || prev.plan,
-        general:     e.general     || prev.general,
-        chest:       e.chest       || prev.chest,
-        abd:         e.abd         || prev.abd,
-        cvs:         e.cvs         || prev.cvs,
-        currentMeds: e.currentMeds?.length ? e.currentMeds : prev.currentMeds,
-        imagingLines:e.imagingLines?.length? e.imagingLines: prev.imagingLines,
-        showImaging: e.showImaging || prev.showImaging,
-        extraLabs:   e.extraLabs?.length   ? e.extraLabs   : prev.extraLabs,
+        name:         e.name         || prev.name,
+        age:          e.age          || prev.age,
+        mrn:          e.mrn          || prev.mrn,
+        room:         e.room         || prev.room,
+        dx:           e.dx           || prev.dx,
+        ftNsvd:       e.ftNsvd       || prev.ftNsvd,
+        hxLines:      e.hxLines?.length      ? e.hxLines      : prev.hxLines,
+        erLevel:      e.erLevel      || prev.erLevel,
+        plan:         e.plan         || prev.plan,
+        general:      e.general      || prev.general,
+        chest:        e.chest        || prev.chest,
+        abd:          e.abd          || prev.abd,
+        cvs:          e.cvs          || prev.cvs,
+        currentMeds:  e.currentMeds?.length  ? e.currentMeds  : prev.currentMeds,
+        imagingLines: e.imagingLines?.length ? e.imagingLines : prev.imagingLines,
+        showImaging:  e.showImaging  || prev.showImaging,
+        extraLabs:    e.extraLabs?.length    ? e.extraLabs    : prev.extraLabs,
         labs: {
           wbc:   e.labs?.wbc   || prev.labs.wbc,
           ne:    e.labs?.ne    || prev.labs.ne,
@@ -183,34 +171,22 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
           creat: e.labs?.creat || prev.labs.creat,
         }
       }));
-
-      setShowTranscript(false);
-      setTranscript("");
+      setShowTranscript(false); setTranscript("");
     } catch (err) {
       alert("Could not process transcript. Please try again.");
       console.error(err);
-    } finally {
-      setProcessing(false);
-    }
+    } finally { setProcessing(false); }
   };
-
-  const LabI = (props) => <LabInput {...props} labs={s.labs} setLabs={set("labs")} dark={D} />;
-
-  const inp     = `w-full border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${D ? "bg-gray-700 border-gray-600 text-white placeholder-gray-500" : "border-gray-300 bg-white"}`;
-  const inpMono = `w-full border rounded px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 ${D ? "bg-gray-700 border-gray-600 text-white placeholder-gray-500" : "border-gray-300 bg-white"}`;
-  const lbl     = `text-xs font-semibold uppercase tracking-wide mb-1 block ${D ? "text-gray-400" : "text-gray-500"}`;
-  const dash    = `font-mono text-sm flex-shrink-0 ${D ? "text-gray-500" : "text-gray-400"}`;
-  const subhead = `text-xs mb-2 font-semibold uppercase ${D ? "text-gray-500" : "text-gray-400"}`;
 
   const buildNote = () => {
     const { name, age, mrn, room, dx, ftNsvd, hxLines, labs, extraLabs, imagingLines, showImaging, currentMeds, erLevel, plan, general, chest, abd, cvs } = s;
-    const examBlock    = `O/E :\n${general}\nCHEST : ${chest}\nABD : ${abd}\nCVS : ${cvs}`;
+    const examBlock     = `O/E :\n${general}\nCHEST : ${chest}\nABD : ${abd}\nCVS : ${cvs}`;
     const extraLabsBlock = extraLabs.filter(l => l.name || l.value).map(l => `- ${l.name}: ${l.value}`).join("\n");
-    const labBlock     = `LABS:\n- CBC: WBC ${labs.wbc} | NE ${labs.ne} | HGB ${labs.hgb} | PLT ${labs.plt}\n- CRP: ${labs.crp} MG/L\n- VBG: PH 7.${labs.ph} | PCO2 ${labs.pco2} | HCO3 ${labs.hco3} |\n- U/E: NA ${labs.na} | K ${labs.k} | GLU ${labs.glu} | UREA ${labs.urea} | CREAT ${labs.creat} |${extraLabsBlock ? "\n" + extraLabsBlock : ""}`;
-    const imagingBlock = showImaging && imagingLines.some(l => l.trim()) ? `* IMAGING:\n${imagingLines.filter(l => l.trim()).map(l => `- ${l}`).join("\n")}` : "";
-    const medsBlock    = currentMeds.filter(m => m.trim()).length > 0 ? `* CURRENTLY ON :\n${currentMeds.filter(m => m.trim()).map(m => `- ${m}`).join("\n")}` : "";
-    const hxBlock      = hxLines.map(l => `- ${l}`).join("\n");
-    const erBlock      = erLevel.trim() ? `AT ER LEVEL :\n${erLevel}\n------------------------------------------------------------\n` : "";
+    const labBlock      = `LABS:\n- CBC: WBC ${labs.wbc} | NE ${labs.ne} | HGB ${labs.hgb} | PLT ${labs.plt}\n- CRP: ${labs.crp} MG/L\n- VBG: PH 7.${labs.ph} | PCO2 ${labs.pco2} | HCO3 ${labs.hco3} |\n- U/E: NA ${labs.na} | K ${labs.k} | GLU ${labs.glu} | UREA ${labs.urea} | CREAT ${labs.creat} |${extraLabsBlock ? "\n" + extraLabsBlock : ""}`;
+    const imagingBlock  = showImaging && imagingLines.some(l => l.trim()) ? `* IMAGING:\n${imagingLines.filter(l => l.trim()).map(l => `- ${l}`).join("\n")}` : "";
+    const medsBlock     = currentMeds.filter(m => m.trim()).length > 0 ? `* CURRENTLY ON :\n${currentMeds.filter(m => m.trim()).map(m => `- ${m}`).join("\n")}` : "";
+    const hxBlock       = hxLines.map(l => `- ${l}`).join("\n");
+    const erBlock       = erLevel.trim() ? `AT ER LEVEL :\n${erLevel}\n------------------------------------------------------------\n` : "";
 
     if (tab === "progress") {
       return `------------------------------------------------------------\nTHIS IS , ${ftNsvd.trim() ? ftNsvd : ""}\n* PRESENTED TO ER WITH HX OF :\n${hxBlock}\n------------------------------------------------------------\n${erBlock}* ${examBlock}\n\n* ${labBlock}\n\n${imagingBlock ? imagingBlock + "\n\n" : ""}${medsBlock ? medsBlock + "\n\n" : ""}* ASSESSMENT:\n${age} OLD. ADMITTED AS A CASE OF ${dx}, HD STABLE, ON RA.\n\n* PLAN:\n${plan.trim() ? plan : "SEE ORDER SHEET"}`;
@@ -224,10 +200,8 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
     await navigator.clipboard.writeText(output);
     const entry = { id: Date.now(), type: tab.toUpperCase(), label: s.name || s.dx || "Unnamed", note: output, time: new Date().toLocaleString() };
     const updated = [entry, ...history].slice(0, 10);
-    setHistory(updated);
-    localStorage.setItem("noteHistory", JSON.stringify(updated));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setHistory(updated); localStorage.setItem("noteHistory", JSON.stringify(updated));
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
   const reset = () => { if (confirm("Reset all fields?")) setS({ ...defaultState, labs: { ...defaultLabs } }); };
@@ -236,14 +210,19 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
     if (!saveLabel.trim()) return;
     const entry = { id: Date.now(), label: saveLabel, tab, state: s };
     const updated = [entry, ...savedPatients];
-    setSavedPatients(updated);
-    localStorage.setItem("savedPatients", JSON.stringify(updated));
+    setSavedPatients(updated); localStorage.setItem("savedPatients", JSON.stringify(updated));
     setSaveLabel(""); setShowSaveInput(false);
   };
 
   const loadPatient  = (entry) => { setS(entry.state); setTab(entry.tab); setShowSaved(false); };
   const deletePatient = (id) => { const u = savedPatients.filter(p => p.id !== id); setSavedPatients(u); localStorage.setItem("savedPatients", JSON.stringify(u)); };
   const deleteHistory = (id) => { const u = history.filter(h => h.id !== id); setHistory(u); localStorage.setItem("noteHistory", JSON.stringify(u)); };
+
+  const inp     = `w-full border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${D ? "bg-gray-700 border-gray-600 text-white placeholder-gray-500" : "border-gray-300 bg-white"}`;
+  const inpMono = `w-full border rounded px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 ${D ? "bg-gray-700 border-gray-600 text-white placeholder-gray-500" : "border-gray-300 bg-white"}`;
+  const lbl     = `text-xs font-semibold uppercase tracking-wide mb-1 block ${D ? "text-gray-400" : "text-gray-500"}`;
+  const dash    = `font-mono text-sm flex-shrink-0 ${D ? "text-gray-500" : "text-gray-400"}`;
+  const subhead = `text-xs mb-2 font-semibold uppercase ${D ? "text-gray-500" : "text-gray-400"}`;
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${D ? "bg-gray-900" : "bg-gray-100"}`}>
@@ -319,7 +298,7 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
           </div>
         )}
 
-        {/* Note Type Tabs */}
+        {/* Tabs */}
         <div className={`flex rounded-xl p-1 mb-4 ${D ? "bg-gray-800" : "bg-white shadow-sm border border-gray-200"}`}>
           {[["isbar", "ISBAR Note"], ["progress", "Progress Note"]].map(([v, l]) => (
             <button key={v} onClick={() => setTab(v)}
@@ -329,51 +308,38 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
           ))}
         </div>
 
-        {/* ===== SMART DICTATION ===== */}
+        {/* Smart Dictation */}
         <div className={`rounded-xl border shadow-sm p-4 mb-4 ${D ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
           <div className="flex items-center justify-between mb-1">
             <div>
               <h2 className={`font-bold text-sm uppercase tracking-wide ${D ? "text-gray-300" : "text-gray-700"}`}>🎙️ Smart Dictation</h2>
               <p className={`text-xs mt-0.5 ${D ? "text-gray-500" : "text-gray-400"}`}>Speak full patient info — AI fills all fields automatically</p>
             </div>
-            <button
-              onClick={dictating ? stopDictation : startDictation}
+            <button onClick={dictating ? stopDictation : startDictation}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm ${dictating ? "bg-red-500 hover:bg-red-600 text-white" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
-              {dictating
-                ? <><MicOff className="w-4 h-4" /> Stop</>
-                : <><Mic className="w-4 h-4" /> Dictate</>}
+              {dictating ? <><MicOff className="w-4 h-4" /> Stop</> : <><Mic className="w-4 h-4" /> Dictate</>}
             </button>
           </div>
-
-          {/* Live transcript */}
           {dictating && (
             <div className={`mt-3 p-3 rounded-lg border text-xs font-mono min-h-12 ${D ? "bg-gray-700 border-gray-600 text-green-400" : "bg-gray-50 border-gray-200 text-gray-600"}`}>
               <span className="text-red-400 font-bold mr-2 animate-pulse">● REC</span>
               {transcript || <span className="opacity-50">Listening...</span>}
             </div>
           )}
-
-          {/* Transcript review */}
           {showTranscript && !dictating && (
             <div className="mt-3">
-              <p className={`text-xs font-semibold mb-2 ${D ? "text-gray-400" : "text-gray-500"}`}>REVIEW TRANSCRIPT — Edit if needed, then confirm:</p>
+              <p className={`text-xs font-semibold mb-2 ${D ? "text-gray-400" : "text-gray-500"}`}>REVIEW — Edit if needed, then confirm:</p>
               <textarea
                 className={`w-full border rounded-lg px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 ${D ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-700"}`}
-                rows={4}
-                value={transcript}
-                onChange={e => setTranscript(e.target.value)}
-              />
+                rows={4} value={transcript} onChange={e => setTranscript(e.target.value)} />
               <div className="flex gap-2 mt-2">
-                <button
-                  onClick={processTranscript}
-                  disabled={processing}
-                  className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2.5 rounded-xl font-semibold text-sm transition-all">
+                <button onClick={processTranscript} disabled={processing}
+                  className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2.5 rounded-xl font-semibold text-sm">
                   {processing
                     ? <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Filling fields...</>
                     : <><Wand2 className="w-4 h-4" /> Confirm & Fill Fields</>}
                 </button>
-                <button
-                  onClick={() => { setShowTranscript(false); setTranscript(""); }}
+                <button onClick={() => { setShowTranscript(false); setTranscript(""); }}
                   className={`px-4 py-2.5 rounded-xl text-sm font-semibold border ${D ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-300 text-gray-600 hover:bg-gray-50"}`}>
                   Discard
                 </button>
@@ -382,22 +348,47 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
           )}
         </div>
 
-        {/* FORM + NOTE */}
         <div className="lg:grid lg:grid-cols-2 lg:gap-6">
           <div className="space-y-3">
 
             {/* Patient Info */}
             <Section title="Patient Info" icon="🧑‍⚕️" dark={D}>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={lbl}>Name</label><input className={inp} placeholder="BABY OF SARA" value={s.name} onChange={e => { const v = up(e.target.value); setS(p => ({...p, name: v})); }} /></div>
-                <div><label className={lbl}>Age</label><input className={inp} placeholder="3 DAYS" value={s.age} onChange={e => { const v = up(e.target.value); setS(p => ({...p, age: v})); }} /></div>
+                <div>
+                  <label className={lbl}>Name</label>
+                  <input className={inp} placeholder="BABY OF SARA" value={s.name}
+                    onChange={e => setField("name", up(e.target.value))} />
+                </div>
+                <div>
+                  <label className={lbl}>Age</label>
+                  <input className={inp} placeholder="3 DAYS" value={s.age}
+                    onChange={e => setField("age", up(e.target.value))} />
+                </div>
                 {tab === "isbar" && <>
-                  <div><label className={lbl}>MRN #</label><input className={inp} placeholder="123456" value={s.mrn} onChange={e => { const v = up(e.target.value); setS(p => ({...p, mrn: v})); }} /></div>
-                  <div><label className={lbl}>Room #</label><input className={inp} placeholder="204" value={s.room} onChange={e => { const v = up(e.target.value); setS(p => ({...p, room: v})); }} /></div>
+                  <div>
+                    <label className={lbl}>MRN #</label>
+                    <input className={inp} placeholder="123456" value={s.mrn}
+                      onChange={e => setField("mrn", up(e.target.value))} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Room #</label>
+                    <input className={inp} placeholder="204" value={s.room}
+                      onChange={e => setField("room", up(e.target.value))} />
+                  </div>
                 </>}
               </div>
-              {tab === "progress" && <div className="mt-3"><label className={lbl}>Birth Info <span className={`normal-case font-normal ${D ? "text-gray-500" : "text-gray-400"}`}>(optional)</span></label><input className={inp} placeholder="FT, NSVD, NO NICU ADMISSION" value={s.ftNsvd} onChange={e => { const v = up(e.target.value); setS(p => ({...p, ftNsvd: v})); }} /></div>}
-              <div className="mt-3"><label className={lbl}>Diagnosis (Dx)</label><input className={inp} placeholder="NEONATAL JAUNDICE" value={s.dx} onChange={e => { const v = up(e.target.value); setS(p => ({...p, dx: v})); }} /></div>
+              {tab === "progress" && (
+                <div className="mt-3">
+                  <label className={lbl}>Birth Info <span className={`normal-case font-normal ${D ? "text-gray-500" : "text-gray-400"}`}>(optional)</span></label>
+                  <input className={inp} placeholder="FT, NSVD, NO NICU ADMISSION" value={s.ftNsvd}
+                    onChange={e => setField("ftNsvd", up(e.target.value))} />
+                </div>
+              )}
+              <div className="mt-3">
+                <label className={lbl}>Diagnosis (Dx)</label>
+                <input className={inp} placeholder="NEONATAL JAUNDICE" value={s.dx}
+                  onChange={e => setField("dx", up(e.target.value))} />
+              </div>
             </Section>
 
             {/* History */}
@@ -406,18 +397,20 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
                 {s.hxLines.map((line, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <span className={dash}>-</span>
-                    <input className={inpMono} placeholder={`History point ${i + 1}`} value={line} onChange={e => { const u = [...s.hxLines]; u[i] = up(e.target.value); set("hxLines")(u); }} />
-                    {s.hxLines.length > 1 && <button onClick={() => set("hxLines")(s.hxLines.filter((_, j) => j !== i))} className="text-red-400 text-xl leading-none flex-shrink-0">x</button>}
+                    <input className={inpMono} placeholder={`History point ${i + 1}`} value={line}
+                      onChange={e => { const u = [...s.hxLines]; u[i] = up(e.target.value); setField("hxLines", u); }} />
+                    {s.hxLines.length > 1 && <button onClick={() => setField("hxLines", s.hxLines.filter((_, j) => j !== i))} className="text-red-400 text-xl leading-none flex-shrink-0">x</button>}
                   </div>
                 ))}
-                <button onClick={() => set("hxLines")([...s.hxLines, ""])} className="text-sm text-blue-500 font-semibold mt-1">+ Add line</button>
+                <button onClick={() => setField("hxLines", [...s.hxLines, ""])} className="text-sm text-blue-500 font-semibold mt-1">+ Add line</button>
               </div>
             </Section>
 
-            {/* ER Level — both tabs, optional */}
+            {/* ER Level */}
             <Section title="AT ER LEVEL" icon="🏥" dark={D} defaultOpen={false}>
               <p className={`text-xs italic mb-2 ${D ? "text-gray-500" : "text-gray-400"}`}>Leave empty to omit from note</p>
-              <textarea className={`${inpMono} resize-none`} rows={3} placeholder="WHAT WAS DONE AT ER LEVEL..." value={s.erLevel} onChange={e => set("erLevel")(up(e.target.value))} />
+              <textarea className={`${inpMono} resize-none`} rows={3} placeholder="WHAT WAS DONE AT ER LEVEL..."
+                value={s.erLevel} onChange={e => setField("erLevel", up(e.target.value))} />
             </Section>
 
             {/* O/E */}
@@ -426,7 +419,8 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
                 {[["general", "General"], ["chest", "Chest"], ["abd", "ABD"], ["cvs", "CVS"]].map(([key, label]) => (
                   <div key={key}>
                     <label className={lbl}>{label}</label>
-                    <input className={inpMono} value={s[key]} onChange={e => set(key)(up(e.target.value))} />
+                    <input className={inpMono} value={s[key]}
+                      onChange={e => setField(key, up(e.target.value))} />
                   </div>
                 ))}
               </div>
@@ -437,27 +431,42 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
               <div className="space-y-4">
                 <div>
                   <p className={subhead}>CBC</p>
-                  <div className="flex flex-wrap gap-2"><LabI k="wbc" label="WBC" /><LabI k="ne" label="NE" /><LabI k="hgb" label="HGB" /><LabI k="plt" label="PLT" /></div>
+                  <div className="flex flex-wrap gap-2">
+                    {["wbc","ne","hgb","plt"].map(k => <LabInput key={k} k={k} label={k.toUpperCase()} labs={s.labs} onChange={setLab} dark={D} />)}
+                  </div>
                 </div>
                 <div>
                   <p className={subhead}>CRP & VBG</p>
-                  <div className="flex flex-wrap gap-2"><LabI k="crp" label="CRP" /><LabI k="ph" label="pH 7." /><LabI k="pco2" label="PCO2" /><LabI k="hco3" label="HCO3" /></div>
+                  <div className="flex flex-wrap gap-2">
+                    <LabInput k="crp" label="CRP" labs={s.labs} onChange={setLab} dark={D} />
+                    <LabInput k="ph" label="pH 7." labs={s.labs} onChange={setLab} dark={D} />
+                    <LabInput k="pco2" label="PCO2" labs={s.labs} onChange={setLab} dark={D} />
+                    <LabInput k="hco3" label="HCO3" labs={s.labs} onChange={setLab} dark={D} />
+                  </div>
                 </div>
                 <div>
                   <p className={subhead}>U/E</p>
-                  <div className="flex flex-wrap gap-2"><LabI k="na" label="NA" placeholder="140" /><LabI k="k" label="K" placeholder="3.8" /><LabI k="glu" label="GLU" /><LabI k="urea" label="UREA" /><LabI k="creat" label="CREAT" /></div>
+                  <div className="flex flex-wrap gap-2">
+                    <LabInput k="na" label="NA" placeholder="140" labs={s.labs} onChange={setLab} dark={D} />
+                    <LabInput k="k" label="K" placeholder="3.8" labs={s.labs} onChange={setLab} dark={D} />
+                    <LabInput k="glu" label="GLU" labs={s.labs} onChange={setLab} dark={D} />
+                    <LabInput k="urea" label="UREA" labs={s.labs} onChange={setLab} dark={D} />
+                    <LabInput k="creat" label="CREAT" labs={s.labs} onChange={setLab} dark={D} />
+                  </div>
                 </div>
                 <div>
                   <p className={subhead}>Additional Labs</p>
                   <div className="space-y-2">
                     {s.extraLabs.map((el, i) => (
                       <div key={i} className="flex gap-2 items-center">
-                        <input className={inpMono} placeholder="Name" value={el.name} onChange={e => { const u = [...s.extraLabs]; u[i] = { ...u[i], name: up(e.target.value) }; set("extraLabs")(u); }} />
-                        <input className={inpMono} placeholder="Value" value={el.value} onChange={e => { const u = [...s.extraLabs]; u[i] = { ...u[i], value: up(e.target.value) }; set("extraLabs")(u); }} />
-                        <button onClick={() => set("extraLabs")(s.extraLabs.filter((_, j) => j !== i))} className="text-red-400 text-xl leading-none flex-shrink-0">x</button>
+                        <input className={inpMono} placeholder="Name" value={el.name}
+                          onChange={e => { const u = [...s.extraLabs]; u[i] = { ...u[i], name: up(e.target.value) }; setField("extraLabs", u); }} />
+                        <input className={inpMono} placeholder="Value" value={el.value}
+                          onChange={e => { const u = [...s.extraLabs]; u[i] = { ...u[i], value: up(e.target.value) }; setField("extraLabs", u); }} />
+                        <button onClick={() => setField("extraLabs", s.extraLabs.filter((_, j) => j !== i))} className="text-red-400 text-xl leading-none flex-shrink-0">x</button>
                       </div>
                     ))}
-                    <button onClick={() => set("extraLabs")([...s.extraLabs, { name: "", value: "" }])} className="text-sm text-blue-500 font-semibold">+ Add lab</button>
+                    <button onClick={() => setField("extraLabs", [...s.extraLabs, { name: "", value: "" }])} className="text-sm text-blue-500 font-semibold">+ Add lab</button>
                   </div>
                 </div>
               </div>
@@ -467,7 +476,7 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
             <Section title="Imaging" icon="🩻" dark={D} defaultOpen={false}>
               <div className="flex items-center justify-between mb-3">
                 <p className={`text-xs italic ${D ? "text-gray-500" : "text-gray-400"}`}>{s.showImaging ? "Add results below" : "Toggle to add imaging"}</p>
-                <button onClick={() => { set("showImaging")(!s.showImaging); set("imagingLines")([]); }}
+                <button onClick={() => { setField("showImaging", !s.showImaging); setField("imagingLines", []); }}
                   className={`text-xs px-3 py-1.5 rounded-full font-semibold transition-all ${s.showImaging ? "bg-blue-100 text-blue-700" : D ? "bg-gray-700 text-gray-400" : "bg-gray-100 text-gray-500"}`}>
                   {s.showImaging ? "Has Imaging" : "+ Add Imaging"}
                 </button>
@@ -477,11 +486,12 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
                   {s.imagingLines.map((line, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <span className={dash}>-</span>
-                      <input className={inpMono} placeholder="CXR: NORMAL" value={line} onChange={e => { const u = [...s.imagingLines]; u[i] = up(e.target.value); set("imagingLines")(u); }} />
-                      {s.imagingLines.length > 1 && <button onClick={() => set("imagingLines")(s.imagingLines.filter((_, j) => j !== i))} className="text-red-400 text-xl leading-none flex-shrink-0">x</button>}
+                      <input className={inpMono} placeholder="CXR: NORMAL" value={line}
+                        onChange={e => { const u = [...s.imagingLines]; u[i] = up(e.target.value); setField("imagingLines", u); }} />
+                      {s.imagingLines.length > 1 && <button onClick={() => setField("imagingLines", s.imagingLines.filter((_, j) => j !== i))} className="text-red-400 text-xl leading-none flex-shrink-0">x</button>}
                     </div>
                   ))}
-                  <button onClick={() => set("imagingLines")([...s.imagingLines, ""])} className="text-sm text-blue-500 font-semibold">+ Add imaging</button>
+                  <button onClick={() => setField("imagingLines", [...s.imagingLines, ""])} className="text-sm text-blue-500 font-semibold">+ Add imaging</button>
                 </div>
               )}
             </Section>
@@ -492,11 +502,12 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
                 {s.currentMeds.map((med, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <span className={dash}>-</span>
-                    <input className={inpMono} placeholder="IV AMPICILLIN 200MG Q12H" value={med} onChange={e => { const u = [...s.currentMeds]; u[i] = up(e.target.value); set("currentMeds")(u); }} />
-                    <button onClick={() => set("currentMeds")(s.currentMeds.filter((_, j) => j !== i))} className="text-red-400 text-xl leading-none flex-shrink-0">x</button>
+                    <input className={inpMono} placeholder="IV AMPICILLIN 200MG Q12H" value={med}
+                      onChange={e => { const u = [...s.currentMeds]; u[i] = up(e.target.value); setField("currentMeds", u); }} />
+                    <button onClick={() => setField("currentMeds", s.currentMeds.filter((_, j) => j !== i))} className="text-red-400 text-xl leading-none flex-shrink-0">x</button>
                   </div>
                 ))}
-                <button onClick={() => set("currentMeds")([...s.currentMeds, ""])} className="text-sm text-blue-500 font-semibold">+ Add medication / IVF</button>
+                <button onClick={() => setField("currentMeds", [...s.currentMeds, ""])} className="text-sm text-blue-500 font-semibold">+ Add medication / IVF</button>
               </div>
               {s.currentMeds.length === 0 && <p className={`text-xs italic mt-2 ${D ? "text-gray-500" : "text-gray-400"}`}>Leave empty to omit from note</p>}
             </Section>
@@ -504,7 +515,8 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
             {/* Plan */}
             <Section title={tab === "isbar" ? "Recommendation / Plan" : "Plan"} icon="💊" dark={D}>
               <p className={`text-xs italic mb-2 ${D ? "text-gray-500" : "text-gray-400"}`}>Leave empty to default to "SEE ORDER SHEET"</p>
-              <textarea className={`${inpMono} resize-none`} rows={4} placeholder="SEE ORDER SHEET" value={s.plan} onChange={e => set("plan")(up(e.target.value))} />
+              <textarea className={`${inpMono} resize-none`} rows={4} placeholder="SEE ORDER SHEET"
+                value={s.plan} onChange={e => setField("plan", up(e.target.value))} />
             </Section>
 
           </div>
@@ -583,7 +595,6 @@ Return ONLY the raw JSON object. No explanation, no markdown, no code blocks, no
           </button>
         </div>
       </div>
-
     </div>
   );
 }
